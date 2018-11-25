@@ -62,6 +62,7 @@ func Sequential(jobName string, files []string, nreduce int,
 	reduceF func(string, []string) string,
 ) (mr *Master) {
 	mr = newMaster("master")
+	fmt.Printf("inside Sequential\n")
 	go mr.run(jobName, files, nreduce, func(phase jobPhase) {
 		switch phase {
 		case mapPhase:
@@ -69,7 +70,9 @@ func Sequential(jobName string, files []string, nreduce int,
 				doMap(mr.jobName, i, f, mr.nReduce, mapF)
 			}
 		case reducePhase:
+			fmt.Printf("reducePhase started\n")
 			for i := 0; i < mr.nReduce; i++ {
+				fmt.Printf("reducePhase started. i: %d\n", i)
 				doReduce(mr.jobName, i, mergeName(mr.jobName, i), len(mr.files), reduceF)
 			}
 		}
@@ -136,6 +139,8 @@ func (mr *Master) run(jobName string, files []string, nreduce int,
 	mr.jobName = jobName
 	mr.files = files
 	mr.nReduce = nreduce
+
+	fmt.Printf("run josbName: %s; files %s; nreduce: %d\n", jobName, files, nreduce)
 
 	fmt.Printf("%s: Starting Map/Reduce task %s\n", mr.address, mr.jobName)
 

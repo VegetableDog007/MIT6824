@@ -1,5 +1,12 @@
 package mapreduce
 
+import (
+	"bufio"
+	"encoding/json"
+	"os"
+	"sort"
+)
+
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
@@ -7,7 +14,39 @@ func doReduce(
 	nMap int, // the number of map tasks that were run ("M" in the paper)
 	reduceF func(key string, values []string) string,
 ) {
-	//
+	kvMap := make(map[string][]string)
+	for i := 0; i < nMap; i++ {
+		reduceFile := reduceName(jobName, i, reduceTask)
+		file, err := os.Open(reduceFile)
+		if err != nil {
+			panic(err)
+		}
+		s := bufio.NewScanner(file)
+
+		for s.Scan() {
+			var kv KeyValue
+			if err := json.Unmarshal(s.Bytes(), &kv); err != nil {
+				panic(err)
+			}
+			kvMap[kv.Key] = append(kvMap[kv.Key], kv.Value)
+		}
+	}
+
+	outputFile, err := os.OpenFile(outFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	enc := json.NewEncoder(outputFile)
+	var keys []string
+	for k := range kvMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for k, v := range kvMap {
+		enc.Encode(KeyValue{k, reduceF(k, v)})
+	}
+	outputFile.Close()
+
 	// doReduce manages one reduce task: it should read the intermediate
 	// files for the task, sort the intermediate key/value pairs by key,
 	// call the user-defined reduce function (reduceF) for each key, and
